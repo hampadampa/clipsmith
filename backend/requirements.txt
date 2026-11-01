@@ -1,0 +1,8 @@
+# Single source of truth for the engine's Python dependencies.
+# pyproject.toml reads this file (dynamic dependencies) and the desktop app installs from it into its own venv.
+# Plain "name>=version" lines only: setuptools cannot read "-r", "--hash" or URLs here.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+faster-whisper>=1.0
+anthropic>=0.40

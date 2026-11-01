@@ -1,0 +1,75 @@
+# Bygger Clipsmith som vanliga installationsfiler (Windows .exe, Mac .dmg, Linux .AppImage) på GitHubs egna datorer,
+# så att ingen behöver installera Node eller några utvecklingsverktyg själv.
+#
+# Starta bygget:  fliken "Actions" -> "Bygg Clipsmith" -> "Run workflow".
+# Filerna hamnar längst ned på bygget under "Artifacts".
+# Vill du ha dem på en egen nedladdningssida: skapa en tagg som börjar på "v" (t.ex. v0.1.0), se README.
+#
+# OBS: det här receptet har aldrig körts. Det är skrivet efter electron-builders och GitHub Actions dokumentation.
+name: Bygg Clipsmith
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # behövs bara för att lägga filerna på en release när du skapar en v-tagg
+
+jobs:
+  build:
+    name: Bygg (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false # ett system som misslyckas ska inte stoppa de andra
+      matrix:
+        include:
+          - { os: windows-latest, name: Windows, artifact: clipsmith-windows }
+          - { os: macos-latest, name: Mac (Apple-processor), artifact: clipsmith-mac }
+          - { os: ubuntu-latest, name: Linux, artifact: clipsmith-linux }
+    defaults:
+      run:
+        working-directory: desktop
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false" # vi har inget signeringscertifikat; hoppa över försöket
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Hämta programmets delar
+        run: npm install
+
+      # Första gången koden ser Electrons riktiga typer. Fel här visas men stoppar inte bygget; skicka dem till mig så rättar jag.
+      - name: Typkontroll mot de riktiga Electron-typerna
+        run: npm run typecheck
+        continue-on-error: true
+
+      - name: Bygg installationsfilen
+        run: npm run dist -- --publish never
+
+      - name: Spara filerna
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.dmg
+            desktop/release/*.AppImage
+          if-no-files-found: error
+
+  release:
+    name: Lägg på nedladdningssidan
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist-files
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist-files/*
