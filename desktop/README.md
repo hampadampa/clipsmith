@@ -122,10 +122,10 @@ raderar också resultaten i motorn.
 | Kommando | Gör |
 |---|---|
 | `npm start` | Bygger och startar Electron |
-| `npm run build` | Kompilerar main, preload och renderer till `dist/` |
+| `npm run build` | Kompilerar main, preload och renderer till `dist/` via `scripts/build.mjs --strict` (typfel stoppar). Kontrollerar sedan att alla filer och alla hänvisningar mellan dem finns |
 | `npm test` | Enhetstester och integrationstester (Node, ingen Electron behövs) |
 | `npm run typecheck` | Typkontroll av alla tre delprojekten |
-| `npm run pack` / `npm run dist` | Paketerar appen med electron-builder till `release/` (**oprövat**, se nedan; byggs normalt av GitHub, väg 1) |
+| `npm run pack` / `npm run dist` | Bygger (typfel visas men stoppar inte), paketerar med electron-builder till `release/` och kontrollerar sedan innehållet i den färdiga `app.asar` med `scripts/verify-package.mjs` (**oprövat med riktiga electron-builder lokalt**, se nedan; byggs normalt av GitHub, väg 1) |
 | `npm run gen:contract` | Genererar om `contract.generated.ts` från backendens modeller |
 
 Sätt `CLIPSMITH_DEVTOOLS=1` för att öppna utvecklarverktygen i huvudfönstret.
@@ -202,7 +202,7 @@ resultat- och profilvyerna samt inspelningsraden.
 ## Tester
 
 ```bash
-npm test          # 139 tester: delad logik, controller, motorhanteraren och Python-hämtningen mot riktiga processer, statiska CSP-vakter
+npm test          # 170 tester: delad logik, controller, motorhanteraren och Python-hämtningen mot riktiga processer, statiska CSP-vakter, byggskriptet och paketkontrollen
 ```
 
 Backendens 81 tester körs med `cd ../backend && PYTHONPATH=src python3 -m unittest discover -s tests -t .`.
@@ -258,7 +258,12 @@ Allt nedan gäller koden så som den levereras. "Verifierat" betyder att jag har
   innehåll, trasig arkivfil, interpretator utan `ensurepip`, återanvändning och reparation av en skadad kopia, samt hur motorn
   beter sig när Python saknas, är gammal, inte kan skapa venv, eller nedladdningen misslyckas.
 - **Startskriptet för Linux/Mac** (`starta-clipsmith.sh`) mot låtsas-`node`/`npm`: först-start, redan installerat, felande installation, felande start, Node saknas.
-- **Inspelningsraden** (10 kontroller) och **139 enhetstester/integrationstester** (`npm test`), **81 backendtester**.
+- **Byggskriptet och paketkontrollen** (`build-script.test.ts`, `verify-package.test.ts`, `after-pack.test.ts`, 31 tester): bygget
+  stoppar när gränssnittet inte byggts, även när typfel annars tolereras; trasiga `import`-hänvisningar och html som pekar på
+  saknade filer fångas; kontrollen av den färdiga `app.asar` slår larm för ett paket utan gränssnitt, utan motor eller utan
+  ffmpeg; `after-pack` tar bort ffprobe för andra system. Kontrollen har dessutom körts mot den första riktiga installationsfilen
+  från GitHub och hittade då det som var fel (se nedan). Testerna är mutationsprövade: stängs kontrollerna av går de röda.
+- **Inspelningsraden** (10 kontroller) och **170 enhetstester/integrationstester** (`npm test`), **81 backendtester**.
 - Typkontroll av main, preload, renderer och tester. Main och preload kontrolleras mot en handskriven stub av Electrons API.
 
 **Inte verifierat, eftersom det kräver riktiga Electron, nätverk eller en annan dator:**
@@ -279,9 +284,14 @@ Allt nedan gäller koden så som den levereras. "Verifierat" betyder att jag har
 - **Nyckelringen** (`safeStorage`) på riktiga operativsystem.
 - **Paketering och byggrecept**: `build`-blocket i `package.json` (electron-builder, backend som `extraResources`, ffmpeg
   uppackad ur asar, en-klicks-installation på Windows, mikrofontext för macOS) och GitHub-receptet `.github/workflows/build.yml`
-  är skrivna efter dokumentationen men aldrig körda. Räkna med att första bygget kan kräva en rättning; skicka i så fall
-  felloggen från bygget. Ingen signering, notarisering, ikon eller autouppdatering, så systemen varnar vid första start.
-  Mac-bygget är bara för Apple-processorer (arm64).
+  är skrivna efter dokumentationen. Windows-bygget har körts en gång på GitHub och gav en installationsfil, men den
+  saknade gränssnittet (`dist/renderer`), så appen hade startat med ett tomt fönster. Orsaken är inte fastställd (jag har
+  inte sett byggloggen). Bygget är därefter ändrat så att det inte längre kan lämna ifrån sig en sådan fil (`scripts/build.mjs`,
+  `scripts/verify-package.mjs`), men det ändrade bygget har inte körts på GitHub än. Mac och Linux har jag ingen information
+  om. Skicka felloggen från bygget om något stoppar; meddelandet "Bygget är inte komplett" listar då exakt vad som saknas.
+  `scripts/after-pack.cjs` (tar bort ffprobe för andra system än det som byggs, ca 290 MB) är testad som filarbete men
+  aldrig anropad av electron-builder. Ingen signering, notarisering, ikon eller autouppdatering, så systemen varnar vid första
+  start. Mac-bygget är bara för Apple-processorer (arm64).
 - **Python-nedladdningen mot riktiga GitHub**: filnamnen (`cpython-3.12.N+DATUM-<system>-install_only.tar.gz`), att
   släppet har en `SHA256SUMS`, att arkivet har mappen `python/` med `python.exe` respektive `bin/python3`, och att den riktiga
   Pythonen klarar `venv` på Windows, är skrivet efter projektets dokumentation men inte kört (min miljö nekas åtkomst till GitHub).

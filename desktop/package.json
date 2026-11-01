@@ -10,13 +10,13 @@
   },
   "scripts": {
     "gen:contract": "python ../scripts/gen_contract.py",
-    "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && node scripts/copy-static.mjs",
+    "build": "node scripts/build.mjs --strict",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit && tsc -p tsconfig.test.json --noEmit",
-    "start": "npm run build:lenient && electron .",
+    "start": "node scripts/build.mjs && electron .",
     "test": "node --test \"test/**/*.test.ts\"",
-    "dist": "npm run build:lenient && electron-builder",
-    "pack": "npm run build:lenient && electron-builder --dir",
-    "build:lenient": "tsc -p tsconfig.main.json || echo Typfel i main ovan, bygger anda && tsc -p tsconfig.renderer.json || echo Typfel i renderer ovan, bygger anda && node scripts/copy-static.mjs"
+    "dist": "node scripts/build.mjs && electron-builder --publish never && node scripts/verify-package.mjs",
+    "pack": "node scripts/build.mjs && electron-builder --dir && node scripts/verify-package.mjs",
+    "build:lenient": "node scripts/build.mjs"
   },
   "devDependencies": {
     "@types/node": "^24",
@@ -34,6 +34,7 @@
     "directories": {
       "output": "release"
     },
+    "afterPack": "scripts/after-pack.cjs",
     "files": [
       "dist/**/*",
       "package.json"
