@@ -155,7 +155,9 @@ köras i tester med en falsk host, riktiga filer, riktiga processer och en rikti
 
 ### Motorns livscykel (`backend-manager.ts`)
 
-- **Python** hittas av `python.ts` (≥ 3.11; föredrar 3.12, 3.13, 3.11; 3.14 används men markeras som nyare än vad som provats).
+- **Python** hittas av `python.ts` (≥ 3.11; föredrar 3.12, 3.13, 3.11). Är systemets Python nyare än 3.13 försöker motorn först hämta sin egen
+  Python 3.12 (paketen `onnxruntime`, PyAV och `tokenizers` saknar färdiga versioner för en helt ny Python); går det inte används systemets
+  ändå. Ett venv som byggts av en för ny Python byggs om när pip ändå måste köras, och ett misslyckat `pip install` tar bort venv så att nästa försök väljer Python på nytt.
   Saknas den, är för gammal eller kan inte skapa en venv hämtar `python-fetch.ts` en egen (se ovan): releasen läses via
   GitHubs API (reservväg: en fast release), filen kontrolleras mot SHA-256, packas upp med systemets `tar` (Windows:
   `System32\tar.exe`), och provas (`venv`, `ensurepip`, `ssl`, `sqlite3`) innan den används. Hanterar timeout vid hängd
@@ -202,7 +204,7 @@ resultat- och profilvyerna samt inspelningsraden.
 ## Tester
 
 ```bash
-npm test          # 196 tester: delad logik, controller, motorhanteraren och Python-hämtningen mot riktiga processer, statiska CSP-vakter, byggskriptet och paketkontrollen
+npm test          # 203 tester: delad logik, controller, motorhanteraren och Python-hämtningen mot riktiga processer, statiska CSP-vakter, byggskriptet och paketkontrollen
 ```
 
 Backendens 81 tester körs med `cd ../backend && PYTHONPATH=src python3 -m unittest discover -s tests -t .`.
@@ -256,14 +258,16 @@ Allt nedan gäller koden så som den levereras. "Verifierat" betyder att jag har
 - **Appens egen Python** (`python-fetch.test.ts`, 19 tester, och 8 i motorhanteraren): nedladdning mot en lokal server som härmar GitHubs releaser,
   kontrollsumma (en manipulerad fil avvisas), SHA256SUMS-tolkning, reservväg när API:t nekar, hängd anslutning, avbrott, arkiv med fel
   innehåll, trasig arkivfil, interpretator utan `ensurepip`, återanvändning och reparation av en skadad kopia, samt hur motorn
-  beter sig när Python saknas, är gammal, inte kan skapa venv, eller nedladdningen misslyckas.
+  beter sig när Python saknas, är gammal, inte kan skapa venv, eller nedladdningen misslyckas. Till det kommer 6 tester för en för ny
+  systempython (byts mot egen kopia, faller tillbaka på systemets om hämtningen misslyckas, ett befintligt venv byggs om först när pip
+  ändå måste köras) och ett test som använder pip-felet från den första riktiga Windows-körningen som riktig testdata.
 - **Startskriptet för Linux/Mac** (`starta-clipsmith.sh`) mot låtsas-`node`/`npm`: först-start, redan installerat, felande installation, felande start, Node saknas.
 - **Byggskriptet och paketkontrollen** (`build-script.test.ts`, `verify-package.test.ts`, `after-pack.test.ts`, `dist-script.test.ts`, 43 tester): bygget
   stoppar när gränssnittet inte byggts, ett misslyckat steg i `dist`/`start` stoppar allt och inget steg kan hoppas över, även när typfel annars tolereras; trasiga `import`-hänvisningar och html som pekar på
   saknade filer fångas; kontrollen av den färdiga `app.asar` slår larm för ett paket utan gränssnitt, utan motor eller utan
   ffmpeg; `after-pack` tar bort ffprobe för andra system. Kontrollen har dessutom körts mot den första riktiga installationsfilen
   från GitHub och hittade då det som var fel (se nedan). Testerna är mutationsprövade: stängs kontrollerna av går de röda.
-- **Inspelningsraden** (10 kontroller) och **196 enhetstester/integrationstester** (`npm test`), **81 backendtester**.
+- **Inspelningsraden** (10 kontroller) och **203 enhetstester/integrationstester** (`npm test`), **81 backendtester**.
 - Typkontroll av main, preload, renderer och tester. Main och preload kontrolleras mot en handskriven stub av Electrons API.
 
 **Inte verifierat, eftersom det kräver riktiga Electron, nätverk eller en annan dator:**
@@ -276,7 +280,9 @@ Allt nedan gäller koden så som den levereras. "Verifierat" betyder att jag har
   Whisper-modellen och att faster-whisper laddar den. Min miljö når inte PyPI eller Hugging Face. Hela
   installationskedjan är testad med riktig venv och riktig pip mot en lokal kravlista, men inte mot de riktiga paketen.
   Backendens FastAPI-lager (`api/app.py`) har inte körts här; testerna kör `backend_shim.py` med samma jobblogik.
-- **Python 3.14** (paketens hjul kan saknas) och **Windows och macOS**: `taskkill`-vägen, `py`-startprogrammet och
+- **Python 3.14**: på en riktig Windows-dator misslyckades installationen med `no matching distributions available for your environment: onnxruntime`
+  (loggen tyder på Python 3.14; själva versionen har jag inte sett). Rättningen ovan är testad med låtsas-Python, men hämtningen av den egna
+  Pythonen mot riktiga GitHub är fortfarande aldrig körd. **Windows och macOS**: `taskkill`-vägen, `py`-startprogrammet och
   Homebrew-sökvägarna är skrivna efter dokumentationen men inte körda.
 - **Medföljande ffmpeg** (`ffmpeg-static`, `ffprobe-static`) har inte installerats här. Appen kontrollerar vid start att
   ffmpeg har `libass` och `libx264` och faller tillbaka på systemets ffmpeg. Notera att ffmpeg-static är GPL-licensierad
