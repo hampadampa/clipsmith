@@ -1,0 +1,95 @@
+{
+  "name": "clipsmith-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Clipsmith desktop recorder: record the screen, let the backend cut it into a main video and shorts.",
+  "type": "module",
+  "main": "dist/main/main/index.js",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "gen:contract": "python ../scripts/gen_contract.py",
+    "build": "tsc -p tsconfig.main.json && tsc -p tsconfig.renderer.json && node scripts/copy-static.mjs",
+    "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "start": "npm run build:lenient && electron .",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "dist": "npm run build:lenient && electron-builder",
+    "pack": "npm run build:lenient && electron-builder --dir",
+    "build:lenient": "tsc -p tsconfig.main.json || echo Typfel i main ovan, bygger anda && tsc -p tsconfig.renderer.json || echo Typfel i renderer ovan, bygger anda && node scripts/copy-static.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "electron": "^45.0.0",
+    "typescript": "^6.0.3",
+    "electron-builder": "^26.0.12"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "ffprobe-static": "^3.1.0"
+  },
+  "build": {
+    "appId": "se.clipsmith.desktop",
+    "productName": "Clipsmith",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**",
+      "node_modules/ffprobe-static/**"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend/src",
+        "to": "backend/src",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc"
+        ]
+      },
+      {
+        "from": "../backend/requirements.txt",
+        "to": "backend/requirements.txt"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.video",
+      "artifactName": "Clipsmith-${version}-${arch}.${ext}",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Clipsmith använder mikrofonen för att spela in din röst tillsammans med skärmen.",
+        "NSAudioCaptureUsageDescription": "Clipsmith spelar in systemljudet tillsammans med skärmen."
+      }
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "AudioVideo",
+      "artifactName": "Clipsmith-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "Clipsmith-Setup-${version}.${ext}"
+    }
+  },
+  "author": "Clipsmith"
+}

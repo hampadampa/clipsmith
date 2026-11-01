@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "outDir": "dist/main"
+  },
+  "include": ["src/main/**/*", "src/shared/**/*", "src/preload/**/*"]
+}

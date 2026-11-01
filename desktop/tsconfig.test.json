@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": ["test/**/*", "src/shared/**/*", "src/main/**/*"],
+  "exclude": ["src/main/index.ts", "src/main/windows.ts"]
+}

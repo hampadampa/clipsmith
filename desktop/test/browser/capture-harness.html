@@ -1,0 +1,30 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>capture harness</title>
+<body style="margin:0;background:#1d3b8f;color:white;font:40px sans-serif">
+<div id="clock">0</div>
+<script type="module">
+  import { startCapture, MIME_CANDIDATES } from "/renderer/capture.js";
+  window.supported = Object.fromEntries(MIME_CANDIDATES.map((t) => [t, MediaRecorder.isTypeSupported(t)]));
+  setInterval(() => { document.getElementById("clock").textContent = new Date().toISOString(); }, 50); // moving pixels => real frames
+
+  window.runCapture = async ({ mime, seconds, mic, system, pauseMs }) => {
+    let send = Promise.resolve();
+    const post = (path, body) => fetch(path, { method: "POST", body });
+    const errors = [];
+    let chunks = 0, ended = 0;
+    await post(`/open?name=${encodeURIComponent(mime)}`, "");
+    const handle = await startCapture({
+      systemAudio: system, micDeviceId: mic ? "" : null, candidates: [mime],
+      onChunk: (buf) => { chunks++; send = send.then(() => post("/chunk", buf)); },
+      onEnded: () => ended++, onError: (m) => errors.push(m),
+    });
+    await new Promise((r) => setTimeout(r, seconds * 500));
+    if (pauseMs) { handle.pause(); await new Promise((r) => setTimeout(r, pauseMs)); handle.resume(); }
+    await new Promise((r) => setTimeout(r, seconds * 500));
+    const { durationMs } = await handle.stop();
+    await send;
+    await post("/close", "");
+    return { mimeType: handle.mimeType, warnings: handle.warnings, chunks, ended, errors, durationMs };
+  };
+</script>
