@@ -202,7 +202,7 @@ resultat- och profilvyerna samt inspelningsraden.
 ## Tester
 
 ```bash
-npm test          # 170 tester: delad logik, controller, motorhanteraren och Python-hämtningen mot riktiga processer, statiska CSP-vakter, byggskriptet och paketkontrollen
+npm test          # 184 tester: delad logik, controller, motorhanteraren och Python-hämtningen mot riktiga processer, statiska CSP-vakter, byggskriptet och paketkontrollen
 ```
 
 Backendens 81 tester körs med `cd ../backend && PYTHONPATH=src python3 -m unittest discover -s tests -t .`.
@@ -263,7 +263,7 @@ Allt nedan gäller koden så som den levereras. "Verifierat" betyder att jag har
   saknade filer fångas; kontrollen av den färdiga `app.asar` slår larm för ett paket utan gränssnitt, utan motor eller utan
   ffmpeg; `after-pack` tar bort ffprobe för andra system. Kontrollen har dessutom körts mot den första riktiga installationsfilen
   från GitHub och hittade då det som var fel (se nedan). Testerna är mutationsprövade: stängs kontrollerna av går de röda.
-- **Inspelningsraden** (10 kontroller) och **170 enhetstester/integrationstester** (`npm test`), **81 backendtester**.
+- **Inspelningsraden** (10 kontroller) och **184 enhetstester/integrationstester** (`npm test`), **81 backendtester**.
 - Typkontroll av main, preload, renderer och tester. Main och preload kontrolleras mot en handskriven stub av Electrons API.
 
 **Inte verifierat, eftersom det kräver riktiga Electron, nätverk eller en annan dator:**
@@ -285,7 +285,9 @@ Allt nedan gäller koden så som den levereras. "Verifierat" betyder att jag har
 - **Paketering och byggrecept**: `build`-blocket i `package.json` (electron-builder, backend som `extraResources`, ffmpeg
   uppackad ur asar, en-klicks-installation på Windows, mikrofontext för macOS) och GitHub-receptet `.github/workflows/build.yml`
   är skrivna efter dokumentationen. Windows-bygget har körts en gång på GitHub och gav en installationsfil, men den
-  saknade gränssnittet (`dist/renderer`), så appen hade startat med ett tomt fönster. Orsaken är inte fastställd (jag har
+  saknade gränssnittet (`dist/renderer`). Första riktiga starten visade bara texten "Not found" i fönstret, vilket är vad appen
+  svarar när gränssnittsfilerna saknas; svaret anger nu vilken fil och mapp det gäller (`main/serve-path.ts`, reglerna testade
+  med både Windows- och Linux-sökvägar). Orsaken till att filerna föll bort är inte fastställd (jag har
   inte sett byggloggen). Bygget är därefter ändrat så att det inte längre kan lämna ifrån sig en sådan fil (`scripts/build.mjs`,
   `scripts/verify-package.mjs`), men det ändrade bygget har inte körts på GitHub än. Mac och Linux har jag ingen information
   om. Skicka felloggen från bygget om något stoppar; meddelandet "Bygget är inte komplett" listar då exakt vad som saknas.

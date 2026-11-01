@@ -6,8 +6,10 @@
  * type, and getDisplayMedia runs in a secure context.
  */
 import { BrowserWindow, nativeTheme, net, protocol, screen } from "electron";
-import { join, normalize, sep } from "node:path";
+import { join, normalize } from "node:path";
 import { pathToFileURL } from "node:url";
+
+import { resolveServed } from "./serve-path.ts";
 
 export const APP_SCHEME = "clipsmith";
 export const APP_ORIGIN = `${APP_SCHEME}://app`;
@@ -17,23 +19,28 @@ const here = import.meta.dirname;
 const RENDERER_ROOT = normalize(join(here, "..", "..", "renderer"));
 const PRELOAD = join(here, "..", "preload", "preload.cjs");
 
-const SERVED = /\.(html|js|css)$/;
-
 /** Must run before the app is ready. */
 export function registerAppScheme(): void {
   protocol.registerSchemesAsPrivileged([{ scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }]);
 }
 
+/** A 404 that says what was asked for and why it failed, since this text is all a person sees if the UI files are missing. */
+const notFound = (detail: string): Response =>
+  new Response(`Not found: ${detail}\n\nGränssnittsmapp: ${RENDERER_ROOT}`, { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
+
 export function serveApp(): void {
   protocol.handle(APP_SCHEME, async (request) => {
+    let asked = request.url;
     try {
       const url = new URL(request.url);
-      if (url.host !== "app") return new Response("Not found", { status: 404 });
-      const file = normalize(join(RENDERER_ROOT, decodeURIComponent(url.pathname)));
-      if (!file.startsWith(RENDERER_ROOT + sep) || !SERVED.test(file)) return new Response("Not found", { status: 404 });
-      return await net.fetch(pathToFileURL(file).toString());
-    } catch {
-      return new Response("Not found", { status: 404 });
+      asked = url.pathname;
+      if (url.host !== "app") return notFound(`okänd värd "${url.host}"`);
+      const resolved = resolveServed(RENDERER_ROOT, url.pathname);
+      if (!resolved.ok) return notFound(`${asked} (${resolved.reason})`);
+      const res = await net.fetch(pathToFileURL(resolved.file).toString());
+      return res.ok ? res : notFound(`${asked} (filen svarade ${res.status})`);
+    } catch (e) {
+      return notFound(`${asked} kunde inte läsas (${e instanceof Error ? e.message : String(e)}). Installationen är troligen ofullständig.`);
     }
   });
 }
